@@ -50,5 +50,15 @@ cp -f $GITHUB_WORKSPACE/configfiles/dts/rk3568/rk3566-panther-x2.dts target/linu
 mkdir -p package/base-files/files/lib/firmware/brcm
 cp -f $GITHUB_WORKSPACE/configfiles/firmware/brcm/* package/base-files/files/lib/firmware/brcm/ 2>/dev/null || true
 
-# 添加Panther X2设备配置（如果需要）
-# 注意：Panther X2 已经在 .config 中配置为 rk35xx 设备
+# 添加Panther X2设备定义到legacy.mk
+cat >> target/linux/rockchip/image/legacy.mk << 'EOF'
+
+define Device/panther_x2
+$(call Device/Legacy/rk3566,$(1))
+  DEVICE_VENDOR := Panther
+  DEVICE_MODEL := X2
+  SUPPORTED_DEVICES += panther,x2
+  DEVICE_PACKAGES += kmod-brcmfmac cypress-firmware-43455-sdio wpad-basic-mbedtls
+endef
+TARGET_DEVICES += panther_x2
+EOF
