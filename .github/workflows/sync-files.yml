@@ -1,0 +1,156 @@
+name: Sync Files
+
+on:
+  repository_dispatch:
+  workflow_dispatch:
+  # schedule:
+    # - cron: 35 15 * * 3
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+    - name: 准备完成
+      uses: actions/checkout@main
+
+    - name: 下载架构编译配置文件
+      run: |
+        mkdir -p ./armv8
+        wget --no-check-certificate --no-cache -O ./armv8/feeds.conf https://fw0.koolcenter.com/iStoreOS/easepi-r1/feeds.conf
+        wget --no-check-certificate --no-cache -O ./armv8/.config https://fw0.koolcenter.com/iStoreOS/easepi-r1/config.buildinfo
+
+        FILE_PATH="./armv8/.config"
+        if [ -f "$FILE_PATH" ] && [ -s "$FILE_PATH" ]; then
+           content=$(cat ${GITHUB_WORKSPACE}/configfiles/config_data-6.x.txt)
+           configdata=$(echo "$content" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
+           # ------------禁用非必要软件包，由AI生成------------
+           sed -i 's/^CONFIG_TARGET_DEVICE_rockchip_armv8_DEVICE_cyber_cyber3588-aib=y/# CONFIG_TARGET_DEVICE_rockchip_armv8_DEVICE_cyber_cyber3588-aib is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_TARGET_DEVICE_rockchip_armv8_DEVICE_fastrhino_r6xs=y/# CONFIG_TARGET_DEVICE_rockchip_armv8_DEVICE_fastrhino_r6xs is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_TARGET_DEVICE_rockchip_armv8_DEVICE_friendlyarm_nanopi-r2s=y/# CONFIG_TARGET_DEVICE_rockchip_armv8_DEVICE_friendlyarm_nanopi-r2s is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_TARGET_DEVICE_rockchip_armv8_DEVICE_friendlyarm_nanopi-r3s=y/# CONFIG_TARGET_DEVICE_rockchip_armv8_DEVICE_friendlyarm_nanopi-r3s is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_TARGET_DEVICE_rockchip_armv8_DEVICE_friendlyarm_nanopi-r4s=y/# CONFIG_TARGET_DEVICE_rockchip_armv8_DEVICE_friendlyarm_nanopi-r4s is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_TARGET_DEVICE_rockchip_armv8_DEVICE_friendlyarm_nanopi-r4se=y/# CONFIG_TARGET_DEVICE_rockchip_armv8_DEVICE_friendlyarm_nanopi-r4se is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_TARGET_DEVICE_rockchip_armv8_DEVICE_friendlyarm_nanopi-r76s=y/# CONFIG_TARGET_DEVICE_rockchip_armv8_DEVICE_friendlyarm_nanopi-r76s is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_TARGET_DEVICE_rockchip_armv8_DEVICE_hinlink_h88k=y/# CONFIG_TARGET_DEVICE_rockchip_armv8_DEVICE_hinlink_h88k is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_TARGET_DEVICE_rockchip_armv8_DEVICE_hinlink_opc-h6xk=y/# CONFIG_TARGET_DEVICE_rockchip_armv8_DEVICE_hinlink_opc-h6xk is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_TARGET_DEVICE_rockchip_armv8_DEVICE_hlink_h28k=y/# CONFIG_TARGET_DEVICE_rockchip_armv8_DEVICE_hlink_h28k is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_TARGET_DEVICE_rockchip_armv8_DEVICE_lyt_t68m=y/# CONFIG_TARGET_DEVICE_rockchip_armv8_DEVICE_lyt_t68m is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_TARGET_DEVICE_rockchip_armv8_DEVICE_lyt_t88m=y/# CONFIG_TARGET_DEVICE_rockchip_armv8_DEVICE_lyt_t88m is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_TARGET_DEVICE_rockchip_armv8_DEVICE_radxa_e20c=y/# CONFIG_TARGET_DEVICE_rockchip_armv8_DEVICE_radxa_e20c is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_TARGET_DEVICE_rockchip_armv8_DEVICE_radxa_e24c=y/# CONFIG_TARGET_DEVICE_rockchip_armv8_DEVICE_radxa_e24c is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_TARGET_DEVICE_rockchip_armv8_DEVICE_radxa_e52c=y/# CONFIG_TARGET_DEVICE_rockchip_armv8_DEVICE_radxa_e52c is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_TARGET_DEVICE_rockchip_armv8_DEVICE_radxa_e54c=y/# CONFIG_TARGET_DEVICE_rockchip_armv8_DEVICE_radxa_e54c is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_TARGET_DEVICE_rockchip_armv8_DEVICE_radxa_rock-4c-plus=y/# CONFIG_TARGET_DEVICE_rockchip_armv8_DEVICE_radxa_rock-4c-plus is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_TARGET_DEVICE_rockchip_armv8_DEVICE_radxa_rock-4se=y/# CONFIG_TARGET_DEVICE_rockchip_armv8_DEVICE_radxa_rock-4se is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_TARGET_DEVICE_rockchip_armv8_DEVICE_roceos_k60pro=y/# CONFIG_TARGET_DEVICE_rockchip_armv8_DEVICE_roceos_k60pro is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_TARGET_DEVICE_rockchip_armv8_DEVICE_xunlong_orangepi-5-plus=y/# CONFIG_TARGET_DEVICE_rockchip_armv8_DEVICE_xunlong_orangepi-5-plus is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_TARGET_DEVICE_rockchip_armv8_DEVICE_easepi_ars4=y/# CONFIG_TARGET_DEVICE_rockchip_armv8_DEVICE_easepi_ars4 is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_TARGET_DEVICE_rockchip_armv8_DEVICE_easepi_r1-lite=y/# CONFIG_TARGET_DEVICE_rockchip_armv8_DEVICE_easepi_r1-lite is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_TARGET_DEVICE_rockchip_armv8_DEVICE_friendlyarm_nanopi-r5s=y/# CONFIG_TARGET_DEVICE_rockchip_armv8_DEVICE_friendlyarm_nanopi-r5s is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_TARGET_DEVICE_rockchip_armv8_DEVICE_friendlyarm_nanopi-r6s=y/# CONFIG_TARGET_DEVICE_rockchip_armv8_DEVICE_friendlyarm_nanopi-r6s is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_TARGET_DEVICE_rockchip_armv8_DEVICE_easepi_r1=y/# CONFIG_TARGET_DEVICE_rockchip_armv8_DEVICE_easepi_r1 is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_TARGET_DEVICE_rockchip_armv8_DEVICE_easepi_a2=y/# CONFIG_TARGET_DEVICE_rockchip_armv8_DEVICE_easepi_a2 is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_TARGET_DEVICE_rockchip_armv8_DEVICE_easepi_r2=y/# CONFIG_TARGET_DEVICE_rockchip_armv8_DEVICE_easepi_r2 is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_TARGET_DEVICE_rockchip_armv8_DEVICE_radxa_rock-5t=y/# CONFIG_TARGET_DEVICE_rockchip_armv8_DEVICE_radxa_rock-5t is not set/' ./armv8/.config
+           
+           sed -i 's/^CONFIG_PACKAGE_adb=y/# CONFIG_PACKAGE_adb is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_PACKAGE_adb-enablemodem=y/# CONFIG_PACKAGE_adb-enablemodem is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_PACKAGE_appfilter=y/# CONFIG_PACKAGE_appfilter is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_PACKAGE_comgt=y/# CONFIG_PACKAGE_comgt is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_PACKAGE_comgt-directip=y/# CONFIG_PACKAGE_comgt-directip is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_PACKAGE_comgt-ncm=y/# CONFIG_PACKAGE_comgt-ncm is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_PACKAGE_ddns-scripts=y/# CONFIG_PACKAGE_ddns-scripts is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_PACKAGE_ddns-scripts-cloudflare=y/# CONFIG_PACKAGE_ddns-scripts-cloudflare is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_PACKAGE_ddns-scripts-dnspod=y/# CONFIG_PACKAGE_ddns-scripts-dnspod is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_PACKAGE_ddns-scripts-services=y/# CONFIG_PACKAGE_ddns-scripts-services is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_PACKAGE_ddns-scripts_aliyun=y/# CONFIG_PACKAGE_ddns-scripts_aliyun is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_PACKAGE_ddnsto=y/# CONFIG_PACKAGE_ddnsto is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_PACKAGE_kmod-fs-hfs=y/# CONFIG_PACKAGE_kmod-fs-hfs is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_PACKAGE_kmod-fs-hfsplus=y/# CONFIG_PACKAGE_kmod-fs-hfsplus is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_PACKAGE_kmod-mhi-bus=y/# CONFIG_PACKAGE_kmod-mhi-bus is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_PACKAGE_kmod-mhi-net=y/# CONFIG_PACKAGE_kmod-mhi-net is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_PACKAGE_kmod-mhi-wwan-ctrl=y/# CONFIG_PACKAGE_kmod-mhi-wwan-ctrl is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_PACKAGE_kmod-mhi-wwan-mbim=y/# CONFIG_PACKAGE_kmod-mhi-wwan-mbim is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_PACKAGE_kmod-oaf=y/# CONFIG_PACKAGE_kmod-oaf is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_PACKAGE_kmod-usb-net-cdc-mbim=y/# CONFIG_PACKAGE_kmod-usb-net-cdc-mbim is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_PACKAGE_kmod-usb-net-huawei-cdc-ncm=y/# CONFIG_PACKAGE_kmod-usb-net-huawei-cdc-ncm is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_PACKAGE_kmod-usb-net-qmi-wwan=y/# CONFIG_PACKAGE_kmod-usb-net-qmi-wwan is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_PACKAGE_kmod-usb-serial-option=y/# CONFIG_PACKAGE_kmod-usb-serial-option is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_PACKAGE_kmod-wireguard=y/# CONFIG_PACKAGE_kmod-wireguard is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_PACKAGE_kmod-wwan=y/# CONFIG_PACKAGE_kmod-wwan is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_PACKAGE_linkease=y/# CONFIG_PACKAGE_linkease is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_PACKAGE_linkmount=y/# CONFIG_PACKAGE_linkmount is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_PACKAGE_luci-app-ddns=y/# CONFIG_PACKAGE_luci-app-ddns is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_PACKAGE_luci-app-ddnsto=y/# CONFIG_PACKAGE_luci-app-ddnsto is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_PACKAGE_luci-app-filetransfer=y/# CONFIG_PACKAGE_luci-app-filetransfer is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_PACKAGE_luci-app-linkease=y/# CONFIG_PACKAGE_luci-app-linkease is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_PACKAGE_luci-app-mergerfs=y/# CONFIG_PACKAGE_luci-app-mergerfs is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_PACKAGE_luci-app-oaf=y/# CONFIG_PACKAGE_luci-app-oaf is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_PACKAGE_luci-app-ota=y/# CONFIG_PACKAGE_luci-app-ota is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_PACKAGE_luci-app-unet=y/# CONFIG_PACKAGE_luci-app-unet is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_PACKAGE_luci-lib-fs=y/# CONFIG_PACKAGE_luci-lib-fs is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_PACKAGE_luci-proto-3g=y/# CONFIG_PACKAGE_luci-proto-3g is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_PACKAGE_luci-proto-mbim=y/# CONFIG_PACKAGE_luci-proto-mbim is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_PACKAGE_luci-proto-modemmanager=y/# CONFIG_PACKAGE_luci-proto-modemmanager is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_PACKAGE_luci-proto-ncm=y/# CONFIG_PACKAGE_luci-proto-ncm is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_PACKAGE_luci-proto-qmi=y/# CONFIG_PACKAGE_luci-proto-qmi is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_PACKAGE_luci-proto-sstp=y/# CONFIG_PACKAGE_luci-proto-sstp is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_PACKAGE_luci-proto-unet=y/# CONFIG_PACKAGE_luci-proto-unet is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_PACKAGE_luci-proto-wireguard=y/# CONFIG_PACKAGE_luci-proto-wireguard is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_PACKAGE_mergerfs=y/# CONFIG_PACKAGE_mergerfs is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_PACKAGE_modemmanager=y/# CONFIG_PACKAGE_modemmanager is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_PACKAGE_qmi-utils=y/# CONFIG_PACKAGE_qmi-utils is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_PACKAGE_strace=y/# CONFIG_PACKAGE_strace is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_PACKAGE_tcpdump=y/# CONFIG_PACKAGE_tcpdump is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_PACKAGE_umbim=y/# CONFIG_PACKAGE_umbim is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_PACKAGE_unet-cli=y/# CONFIG_PACKAGE_unet-cli is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_PACKAGE_unetd=y/# CONFIG_PACKAGE_unetd is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_PACKAGE_uqmi=y/# CONFIG_PACKAGE_uqmi is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_PACKAGE_wireguard-tools=y/# CONFIG_PACKAGE_wireguard-tools is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_PACKAGE_wwan=y/# CONFIG_PACKAGE_wwan is not set/' ./armv8/.config
+           
+           sed -i 's/^CONFIG_PACKAGE_luci-i18n-ddns-zh-cn=y/# CONFIG_PACKAGE_luci-i18n-ddns-zh-cn is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_PACKAGE_luci-i18n-ddnsto-zh-cn=y/# CONFIG_PACKAGE_luci-i18n-ddnsto-zh-cn is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_PACKAGE_luci-i18n-filetransfer-zh-cn=y/# CONFIG_PACKAGE_luci-i18n-filetransfer-zh-cn is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_PACKAGE_luci-i18n-linkease-zh-cn=y/# CONFIG_PACKAGE_luci-i18n-linkease-zh-cn is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_PACKAGE_luci-i18n-mergerfs-zh-cn=y/# CONFIG_PACKAGE_luci-i18n-mergerfs-zh-cn is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_PACKAGE_luci-i18n-oaf-zh-cn=y/# CONFIG_PACKAGE_luci-i18n-oaf-zh-cn is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_PACKAGE_luci-i18n-ota-zh-cn=y/# CONFIG_PACKAGE_luci-i18n-ota-zh-cn is not set/' ./armv8/.config
+           
+           sed -i 's/^CONFIG_PACKAGE_kmod-aic8800s=m/# CONFIG_PACKAGE_kmod-aic8800s is not set/' ./armv8/.config
+           
+           sed -i 's/^CONFIG_MODEMMANAGER_WITH_MBIM=y/# CONFIG_MODEMMANAGER_WITH_MBIM is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_MODEMMANAGER_WITH_QMI=y/# CONFIG_MODEMMANAGER_WITH_QMI is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_MODEMMANAGER_WITH_QRTR=y/# CONFIG_MODEMMANAGER_WITH_QRTR is not set/' ./armv8/.config
+           
+           sed -i 's/^CONFIG_PACKAGE_webdav2=y/# CONFIG_PACKAGE_webdav2 is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_PACKAGE_unishare=y/# CONFIG_PACKAGE_unishare is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_PACKAGE_luci-app-unishare=y/# CONFIG_PACKAGE_luci-app-unishare is not set/' ./armv8/.config
+           sed -i 's/^CONFIG_PACKAGE_luci-i18n-unishare-zh-cn=y/# CONFIG_PACKAGE_luci-i18n-unishare-zh-cn is not set/' ./armv8/.config
+           # ----------------结束----------------
+           echo -e "\\n$configdata" >> ./armv8/.config
+           # 清除.config配置文件里面重复的配置项
+           configdata2=$(cat ./armv8/.config)
+           echo "$configdata2" | awk '!seen[$0]++ && NF > 0' > ./armv8/.config
+        else
+           echo "不处理数据。"
+        fi
+
+    - name: 同步配置
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        personal_token: ${{ secrets.GH_TOKEN }}
+        publish_branch: main
+        publish_dir: ./
+        user_name: 'GitHub Action'
+        user_email: 'github-actions[bot]@github.com'
+        exclude_assets: ''
+        keep_files: true
+        commit_message: "Sync files"
+
+    - name: 删除运行记录
+      uses: Mattraks/delete-workflow-runs@main
+      with:
+        retain_days: 1
+        keep_minimum_runs: 1
+        token: ${{ secrets.GH_TOKEN }}
