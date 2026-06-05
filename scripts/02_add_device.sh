@@ -46,10 +46,6 @@ cp -f $GITHUB_WORKSPACE/configfiles/dts/rk3568/rk3566-jp-tvbox.dts target/linux/
 # 复制Panther X2 DTS到target/linux/rockchip/dts/rk3568
 cp -f $GITHUB_WORKSPACE/configfiles/dts/rk3568/rk3566-panther-x2.dts target/linux/rockchip/dts/rk3568/
 
-# 复制Panther X2 WiFi固件到firmware目录
-mkdir -p package/base-files/files/lib/firmware/brcm
-cp -f $GITHUB_WORKSPACE/configfiles/firmware/brcm/* package/base-files/files/lib/firmware/brcm/ 2>/dev/null || true
-
 # 添加Panther X2设备定义到legacy.mk
 cat >> target/linux/rockchip/image/legacy.mk << 'EOF'
 
