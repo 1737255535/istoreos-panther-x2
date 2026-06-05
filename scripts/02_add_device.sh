@@ -55,7 +55,7 @@ $(call Device/Legacy/rk3566,$(1))
   DEVICE_MODEL := X2
   DEVICE_DTS := rk3568/rk3566-panther-x2
   SUPPORTED_DEVICES += panther,x2
-  DEVICE_PACKAGES += kmod-brcmfmac cypress-firmware-43455-sdio wpad-basic-mbedtls
+  DEVICE_PACKAGES += kmod-brcmfmac wpad-basic-mbedtls
 endef
 TARGET_DEVICES += panther_x2
 EOF
