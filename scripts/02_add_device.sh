@@ -57,6 +57,7 @@ define Device/panther_x2
 $(call Device/Legacy/rk3566,$(1))
   DEVICE_VENDOR := Panther
   DEVICE_MODEL := X2
+  DEVICE_DTS := rk3568/rk3566-panther-x2
   SUPPORTED_DEVICES += panther,x2
   DEVICE_PACKAGES += kmod-brcmfmac cypress-firmware-43455-sdio wpad-basic-mbedtls
 endef
