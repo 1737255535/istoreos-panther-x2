@@ -49,22 +49,44 @@ rm -rf feeds/luci/applications/luci-app-filebrowser
 rm -rf feeds/third_party/luci-app-zerotier
 
 # Git稀疏克隆，只克隆指定目录到本地
+# 上游仓库目录结构调整时不应中断整个构建：克隆失败或目录缺失时跳过并给出提示
 function git_sparse_clone() {
   branch="$1" repourl="$2" && shift 2
-  git clone --depth=1 -b $branch --single-branch --filter=blob:none --sparse $repourl
+  local repodir
   repodir=$(echo $repourl | awk -F '/' '{print $(NF)}')
-  cd $repodir && git sparse-checkout set $@
-  mv -f $@ ../package/new
-  cd .. && rm -rf $repodir
+  if ! git clone --depth=1 -b $branch --single-branch --filter=blob:none --sparse $repourl; then
+    echo "警告：克隆 $repourl 失败，跳过：$*"
+    rm -rf "$repodir"
+    return 0
+  fi
+  cd $repodir || return 0
+  if ! git sparse-checkout set "$@"; then
+    echo "警告：$repourl 中不存在目录 $*，跳过"
+    cd .. && rm -rf "$repodir"
+    return 0
+  fi
+  mkdir -p ../package/new
+  for d in "$@"; do
+    [ -e "$d" ] || { echo "警告：$repourl 缺少 $d，跳过"; continue; }
+    rm -rf "../package/new/$d"
+    mv -f "$d" ../package/new
+  done
+  cd .. && rm -rf "$repodir"
 }
 
 # 常见插件
 git_sparse_clone master https://github.com/vernesong/OpenClash luci-app-openclash
+
+# luci-app-lucky 上游已重构为 JS 视图（luci-app-lucky/htdocs/luci-static/resources/view/lucky/），
+# 不再有 luasrc/view/lucky/lucky_status.htm，故不再覆盖旧版 Lua 状态页。
+# 如需旧版样式，请改用 v3 分支：git_sparse_clone v3 https://github.com/gdy666/luci-app-lucky luci-app-lucky lucky
 git_sparse_clone main https://github.com/gdy666/luci-app-lucky luci-app-lucky lucky
-cp -f $GITHUB_WORKSPACE/configfiles/lucky_status.htm package/new/luci-app-lucky/luasrc/view/lucky/lucky_status.htm
+
 git_sparse_clone main https://github.com/sbwml/luci-app-openlist2 luci-app-openlist2 openlist2
 git_sparse_clone main https://github.com/sbwml/openwrt_pkgs luci-app-zerotier
 git_sparse_clone main https://github.com/Kwonelee/openwrt-packages luci-app-ramfree filebrowser luci-app-filebrowser-go
 FB_VERSION="$(curl -s https://github.com/filebrowser/filebrowser/tags | grep -Eo 'v[0-9]+\.[0-9]+\.[0-9]+' | head -n 1 | sed 's/^v//')"
-sed -i "s/2.54.0/$FB_VERSION/g" package/new/filebrowser/Makefile
+if [ -f package/new/filebrowser/Makefile ] && [ -n "$FB_VERSION" ]; then
+  sed -i "s/2.54.0/$FB_VERSION/g" package/new/filebrowser/Makefile
+fi
 #git clone --depth=1 -b master https://github.com/w9315273/luci-app-adguardhome package/new/luci-app-adguardhome

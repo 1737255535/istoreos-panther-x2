@@ -189,7 +189,7 @@ jobs:
         echo "status=success" >> ${GITHUB_OUTPUT}
 
     - name: 自动发布固件到 Releases
-      uses: softprops/action-gh-release@v2
+      uses: softprops/action-gh-release@v3
       if: steps.tag.outputs.status == 'success' && !cancelled()
       with:
         tag_name: ${{ steps.tag.outputs.release_tag }}
@@ -203,9 +203,33 @@ jobs:
         keep_minimum_runs: 15
         token: ${{ env.GITHUB_TOKEN }}
 
+    # 原 dev-drprasad/delete-older-releases@v0.3.3 以 node20 运行，GitHub 已弃用 Node 20。
+    # 该上游从未发布 node24 版本（最新 v0.3.4 的 runs.using 仍为 node20），
+    # 故改用等价的原生实现：保留最近 KEEP_LATEST 个 release，并按需删除其 tag。
     - name: 删除自动发布的旧固件
-      uses: dev-drprasad/delete-older-releases@v0.3.3
       if: env.UPLOAD_RELEASE == 'true' && !cancelled()
-      with:
-        keep_latest: 60
-        delete_tags: true
+      env:
+        GH_TOKEN: ${{ env.GITHUB_TOKEN }}
+        KEEP_LATEST: '60'
+        DELETE_TAGS: 'true'
+      run: |
+        set -euo pipefail
+        keep="${KEEP_LATEST:-60}"
+        echo "保留最近 ${keep} 个 release"
+        total=$(gh api "repos/${GITHUB_REPOSITORY}/releases?per_page=100" --jq 'length')
+        echo "当前 release 总数: ${total}"
+        ids=$(gh api --paginate "repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
+              --jq ".[].id" | head -n "$keep")
+        if [ -z "$ids" ]; then
+          echo "没有可删除的旧固件"
+          exit 0
+        fi
+        for id in $ids; do
+          tag=$(gh api "repos/${GITHUB_REPOSITORY}/releases/${id}" --jq '.tag_name')
+          echo "删除 release ${id} (${tag})"
+          gh api -X DELETE "repos/${GITHUB_REPOSITORY}/releases/${id}" || true
+          if [ "${DELETE_TAGS}" = "true" ] && [ -n "$tag" ]; then
+            gh api -X DELETE "repos/${GITHUB_REPOSITORY}/git/refs/tags/${tag}" 2>/dev/null \
+              || echo "  tag ${tag} 删除失败或不存在，已跳过"
+          fi
+        done
