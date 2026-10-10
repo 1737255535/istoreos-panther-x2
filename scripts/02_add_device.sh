@@ -31,7 +31,18 @@ fi
 KVER="$(sed -n 's/^KERNEL_PATCHVER:=//p' target/linux/rockchip/Makefile)"
 PATCHDIR="target/linux/rockchip/patches-${KVER}"
 echo "内核版本: ${KVER}，补丁目录: ${PATCHDIR}"
-cp -f $GITHUB_WORKSPACE/configfiles/patch/800-add-rk3399-tvi3315a-dtb-to-makefile.patch "${PATCHDIR}/"
+
+# 该补丁把 rk3399-tvi3315a.dtb 注册进内核 dts/rockchip/Makefile。
+# 它依赖 target/linux/rockchip/files/ 注入 dts 的老机制，该目录仅 24.10 有；
+# 且 tvi_tvi3315a 已不在构建目标中（.config 只启用 panther_x2），补丁对产物无影响。
+# 25.12 已移除 files/ 布局，若强行套用，其 hunk 上下文会与前序 13 个已修改同一
+# 文件的补丁冲突，导致 target/linux 编译失败。
+if [ -d target/linux/rockchip/files/arch/arm64/boot/dts/rockchip ]; then
+  cp -f $GITHUB_WORKSPACE/configfiles/patch/800-add-rk3399-tvi3315a-dtb-to-makefile.patch "${PATCHDIR}/"
+  echo "已安装 800 补丁（24.10 布局，支持 files/ 注入）"
+else
+  echo "跳过 800 补丁：无 target/linux/rockchip/files/ 布局（25.12），补丁不适用"
+fi
 
 # ============================================================================================================
 # 移植RK3566示例，其他RK35xx可模仿
