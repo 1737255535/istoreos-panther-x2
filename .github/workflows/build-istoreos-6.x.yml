@@ -215,16 +215,18 @@ jobs:
       run: |
         set -euo pipefail
         keep="${KEEP_LATEST:-60}"
-        echo "保留最近 ${keep} 个 release"
-        total=$(gh api "repos/${GITHUB_REPOSITORY}/releases?per_page=100" --jq 'length')
+        echo "保留最新 ${keep} 个 release，删除更旧的"
+        # GitHub 按发布时间倒序返回，第 1..keep 个需要保留，第 keep+1 个起才删除
+        mapfile -t ids < <(gh api --paginate "repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
+                            --jq '.[].id')
+        total="${#ids[@]}"
         echo "当前 release 总数: ${total}"
-        ids=$(gh api --paginate "repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
-              --jq ".[].id" | head -n "$keep")
-        if [ -z "$ids" ]; then
-          echo "没有可删除的旧固件"
+        if [ "$total" -le "$keep" ]; then
+          echo "没有超过 ${keep} 个的旧固件需要删除"
           exit 0
         fi
-        for id in $ids; do
+        # 跳过前 keep 个，仅处理超出的部分
+        for id in "${ids[@]:$keep}"; do
           tag=$(gh api "repos/${GITHUB_REPOSITORY}/releases/${id}" --jq '.tag_name')
           echo "删除 release ${id} (${tag})"
           gh api -X DELETE "repos/${GITHUB_REPOSITORY}/releases/${id}" || true
