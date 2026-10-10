@@ -8,7 +8,7 @@ on:
 
 env:
   REPO_URL: https://github.com/istoreos/istoreos
-  REPO_BRANCH: istoreos-24.10
+  REPO_BRANCH: istoreos-25.12
   FEEDS_CONF: feeds.conf
   CONFIG_FILE: .config
   DIY_P1_SH: scripts/01_get_ready.sh

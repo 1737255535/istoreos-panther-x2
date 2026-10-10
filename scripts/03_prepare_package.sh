@@ -3,6 +3,9 @@
 # ============================================================================================================
 # 自定义DIY⬇⬇⬇
 # ============================================================================================================
+TMPDIR="$(mktemp -d)"
+trap 'rm -rf "$TMPDIR"' EXIT
+
 # TTYD
 sed -i 's/procd_set_param stdout 1/procd_set_param stdout 0/g' feeds/packages/utils/ttyd/files/ttyd.init
 sed -i 's/procd_set_param stderr 1/procd_set_param stderr 0/g' feeds/packages/utils/ttyd/files/ttyd.init
@@ -11,15 +14,28 @@ sed -i 's/procd_set_param stderr 1/procd_set_param stderr 0/g' feeds/packages/ut
 # samba4 default config
 sed -i 's/invalid users = root/#invalid users = root/g' feeds/packages/net/samba4/files/smb.conf.template
 
-# clash_meta
+# clash_meta：下载失败时必须报错，避免把 0 字节的假内核打进固件
 mkdir -p files/etc/openclash/core
 CLASH_META_URL="https://raw.githubusercontent.com/vernesong/OpenClash/core/master/meta/clash-linux-arm64.tar.gz"
-wget -qO- $CLASH_META_URL | tar xOvz > files/etc/openclash/core/clash_meta
-chmod +x files/etc/openclash/core/clash*
+if wget -qO "$TMPDIR/clash_meta.tar.gz" "$CLASH_META_URL" && tar tzf "$TMPDIR/clash_meta.tar.gz" >/dev/null 2>&1; then
+  tar xOvzf "$TMPDIR/clash_meta.tar.gz" > files/etc/openclash/core/clash_meta
+  chmod +x files/etc/openclash/core/clash_meta
+  echo "clash_meta 下载成功: $(du -h files/etc/openclash/core/clash_meta | cut -f1)"
+  if [ ! -s files/etc/openclash/core/clash_meta ]; then
+    echo "错误：clash_meta 内容为空，中止构建"; exit 1
+  fi
+else
+  echo "错误：clash_meta 下载或解压失败，中止构建"; exit 1
+fi
+rm -f "$TMPDIR/clash_meta.tar.gz"
 
-# clash_config
+# clash_config：订阅配置。下载失败不阻断构建，但需明确告警
 mkdir -p files/etc/config
-wget -qO- https://raw.githubusercontent.com/Kwonelee/Kwonelee/refs/heads/main/rule/openclash > files/etc/config/openclash
+if wget -qO files/etc/config/openclash "https://raw.githubusercontent.com/Kwonelee/Kwonelee/refs/heads/main/rule/openclash" && [ -s files/etc/config/openclash ]; then
+  echo "clash 配置下载成功: $(du -h files/etc/config/openclash | cut -f1)"
+else
+  echo "警告：clash 配置下载失败，固件不含默认订阅（不影响编译）"
+fi
 
 # 集成无线驱动
 mkdir -p package/base-files/files/lib/firmware/brcm
