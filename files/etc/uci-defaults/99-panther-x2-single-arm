@@ -1,0 +1,70 @@
+#!/bin/sh
+# Panther X2 single-arm: ethX.4 = WAN(PPPoE), ethX.1024 = LAN(192.168.4.1/24)
+# Auto-detect base iface: prefer eth0, fallback to first ethernet in /sys/class/net (excluding lo)
+BASE=""
+for c in eth0 eth1 eno1 end0 end1; do
+  [ -d "/sys/class/net/$c" ] && BASE="$c" && break
+done
+[ -z "$BASE" ] && BASE=$(ls /sys/class/net | grep -v "^lo$" | head -n1)
+[ -z "$BASE" ] && BASE="eth0"
+WAN_DEV="$BASE.4"
+LAN_DEV="$BASE.1024"
+# --- network ---
+uci -q batch <<EOF
+set network.wan.device="$WAN_DEV"
+set network.wan.proto="pppoe"
+set network.wan.username="broadband_account"
+set network.wan.password="broadband_password"
+set network.wan.ipv6="auto"
+set network.lan.device="$LAN_DEV"
+set network.lan.proto="static"
+set network.lan.ipaddr="192.168.4.1"
+set network.lan.netmask="255.255.255.0"
+set network.lan.ip6assign="60"
+delete network.wan6
+EOF
+# ensure lan device exists type 8021q
+uci -q batch <<EOF
+set network.lan_dev=device
+set network.lan_dev.name="$LAN_DEV"
+set network.lan_dev.type="8021q"
+set network.lan_dev.ifname="$BASE"
+set network.lan_dev.vid="1024"
+set network.wan_dev=device
+set network.wan_dev.name="$WAN_DEV"
+set network.wan_dev.type="8021q"
+set network.wan_dev.ifname="$BASE"
+set network.wan_dev.vid="4"
+EOF
+uci commit network
+# --- dhcp: LAN 100-199, 12h ---
+uci -q batch <<EOF
+set dhcp.lan.interface="lan"
+set dhcp.lan.start="100"
+set dhcp.lan.limit="100"
+set dhcp.lan.leasetime="12h"
+set dhcp.lan.dhcpv4="server"
+set dhcp.lan.ra="server"
+EOF
+uci commit dhcp
+# --- firewall: lan->wan masq/mtu_fixup ---
+uci -q batch <<EOF
+set firewall.@zone[0].name="lan"
+set firewall.@zone[0].network="lan"
+set firewall.@zone[0].input="ACCEPT"
+set firewall.@zone[0].output="ACCEPT"
+set firewall.@zone[0].forward="ACCEPT"
+set firewall.@zone[1].name="wan"
+set firewall.@zone[1].network="wan"
+set firewall.@zone[1].input="REJECT"
+set firewall.@zone[1].output="ACCEPT"
+set firewall.@zone[1].forward="REJECT"
+set firewall.@zone[1].masq="1"
+set firewall.@zone[1].mtu_fix="1"
+set firewall.@forwarding[0].src="lan"
+set firewall.@forwarding[0].dest="wan"
+EOF
+uci commit firewall
+# Docker containers on macvlan (mihomo/adguard/gost/hy2) keep working; no change needed.
+# Drop self after first boot
+exit 0
