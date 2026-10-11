@@ -41,28 +41,12 @@ VARIANTS = [
         "endef\n",
         "define U-Boot/rk3399/Default",
     ),
-    (
-        "panther-x2-rk3566",
-        "define U-Boot/panther-x2-rk3566\n"
-        "  $(U-Boot/rk3566/Default)\n"
-        "  NAME:=Panther X2\n"
-        "  BUILD_DEVICES:= \\\n"
-        "    panther_x2\n"
-        "endef\n",
-        "define U-Boot/rk3566/Default",
-    ),
 ]
 
+# Device/panther_x2 不显式指定 UBOOT_DEVICE_NAME：
+# 继承 Device/Legacy/rk3568 -> Device/Legacy/rk3568 中的
+# UBOOT_DEVICE_NAME := easepi-rk3568，正是我们需要的 bootloader。
 LEGACY_OLD = """define Device/panther_x2
-$(call Device/Legacy/rk3566,$(1))
-  DEVICE_VENDOR := Panther
-  DEVICE_MODEL := X2
-  DEVICE_DTS := rk3568/rk3566-panther-x2
-  SUPPORTED_DEVICES += panther,x2
-  DEVICE_PACKAGES += kmod-brcmfmac wpad-basic-mbedtls
-endef"""
-
-LEGACY_NEW = """define Device/panther_x2
 $(call Device/Legacy/rk3566,$(1))
   DEVICE_VENDOR := Panther
   DEVICE_MODEL := X2
@@ -71,6 +55,8 @@ $(call Device/Legacy/rk3566,$(1))
   UBOOT_DEVICE_NAME := panther-x2-rk3566
   DEVICE_PACKAGES += kmod-brcmfmac wpad-basic-mbedtls
 endef"""
+
+LEGACY_NEW = LEGACY_OLD
 
 
 def targets_block(src):
@@ -144,8 +130,9 @@ def patch_makefile():
 
 
 def patch_legacy_mk():
+    """确认 Device/panther_x2 未被注入无效的自定义 bootloader 名。"""
     if not os.path.exists(LEGACY_MK):
-        print(f"[device] 未找到 {LEGACY_MK}，跳过设备修正")
+        print(f"[device] 未找到 {LEGACY_MK}，跳过检查")
         return
 
     with open(LEGACY_MK, encoding="utf-8") as fh:
@@ -156,18 +143,13 @@ def patch_legacy_mk():
         return
 
     body = src.split("define Device/panther_x2", 1)[1].split("endef", 1)[0]
-    if "UBOOT_DEVICE_NAME" in body:
-        print("[device] Device/panther_x2 已指定 UBOOT_DEVICE_NAME，跳过")
-        return
-
-    if LEGACY_OLD not in src:
-        print("[device] Device/panther_x2 定义与预期不符，未修改")
-        return
-
-    src = src.replace(LEGACY_OLD, LEGACY_NEW, 1)
-    with open(LEGACY_MK, "w", encoding="utf-8") as fh:
-        fh.write(src)
-    print("[device] 已为 Device/panther_x2 指定 UBOOT_DEVICE_NAME")
+    bad = re.search(r"UBOOT_DEVICE_NAME\s*:=\s*(\S+)", body)
+    if bad and "panther-x2-rk3566" in bad.group(1):
+        sys.exit("[device] 错误：Device/panther_x2 仍指向无效的 panther-x2-rk3566 变体")
+    if bad:
+        print(f"[device] Device/panther_x2 使用 bootloader: {bad.group(1)}")
+    else:
+        print("[device] Device/panther_x2 继承 easepi-rk3568（RK3566/RK3568 参考板），无需指定")
 
 
 if __name__ == "__main__":
