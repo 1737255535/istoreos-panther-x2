@@ -8,7 +8,11 @@ on:
 
 env:
   REPO_URL: https://github.com/istoreos/istoreos
-  REPO_BRANCH: istoreos-25.12
+  # 源码分支由当前仓库分支名推导，两条分支共用同一份 workflow：
+  #   main / istoreos-25.12  -> istoreos-25.12
+  #   istoreos-24.10         -> istoreos-24.10
+  # schedule 只会跑默认分支(main)，故默认取 25.12。
+  REPO_BRANCH: ${{ github.ref_name == 'istoreos-24.10' && 'istoreos-24.10' || 'istoreos-25.12' }}
   FEEDS_CONF: feeds.conf
   CONFIG_FILE: .config
   DIY_P1_SH: scripts/01_get_ready.sh

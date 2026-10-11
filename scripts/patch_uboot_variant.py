@@ -5,16 +5,27 @@
 ----
 仓库里 configfiles/uboot-rockchip/Makefile 是 istoreos-24.10 时期的整份快照，
 整体覆盖会丢掉新分支（25.12）新增/变更的设备定义与固件版本。
-因此改为在源码树自带的 Makefile 上「增量注册」本项目需要的变体：
+因此改为在源码树自带的 Makefile 上「增量注册」。
 
-  1. tvi3315a-rk3399   —— 24.10 快照中存在、25.12 上游已删除的移植设备
-  2. panther-x2-rk3566 —— Panther X2 专用 bootloader
+需要注册的变体
+--------------
+tvi3315a-rk3399 —— 24.10 快照中存在、25.12 上游已删除的移植设备。
 
-两个变体都带 BUILD_DEVICES，make 会按所选 profile 自动构建对应 bootloader。
+该变体与 rk3399 示例设备一样，**仅在 24.10 布局下需要**：
+  - 24.10: target/linux/rockchip/files/arch/arm64/boot/dts/rockchip 存在，
+           rk3399 dts 可注入内核树，设备可正常编出 dtb。
+  - 25.12: 该目录已移除，若仍注册设备会导致
+           cc1: fatal error: .../arch/arm64/boot/dts/rockchip/rk3399-tvi3315a.dts:
+           No such file or directory
+           make[5]: *** [Makefile:92: .../image-rk3399-tvi3315a.dtb] Error 1
+           ERROR: target/linux failed to build.
 
-同时必须修正 Device/panther_x2 的 UBOOT_DEVICE_NAME：
-它继承 Device/Legacy/rk3568，会把 bootloader 解析成 easepi-rk3568，
-而该 bootloader 的 DDR/PMIC 与 Panther X2 不匹配，刷写后无法启动。
+因此通过环境变量 RK3399_SUPPORT=1/0 控制是否注册（由 02_add_device.sh 按布局传入）。
+
+Panther X2 不使用自定义 bootloader 变体：Device/panther_x2 继承
+Device/Legacy/rk3568，UBOOT_DEVICE_NAME 天然解析为 easepi-rk3568
+（RK3566/RK3568 官方参考板，DDR/PMIC 通用，
+ ATF rk3568_bl31_v1.44.elf + TPL rk3566_ddr_1056MHz_v1.21.bin 均匹配 RK3566）。
 
 脚本幂等：重复执行不会重复注册，也不会破坏 UBOOT_TARGETS 语法。
 """
@@ -29,7 +40,7 @@ LEGACY_MK = "target/linux/rockchip/image/legacy.mk"
 # UBOOT_TARGETS 行：形如 "UBOOT_TARGETS := \" （反斜杠结尾续行）
 TARGETS_RE = re.compile(r"^UBOOT_TARGETS\s*:=\s*\\$", re.M)
 
-# 变体名 -> (定义块, 必须存在的 Default 块)
+# 变体名 -> (定义块, 必须存在的 Default 块, 需要的 RK3399_SUPPORT 取值)
 VARIANTS = [
     (
         "tvi3315a-rk3399",
@@ -40,23 +51,15 @@ VARIANTS = [
         "    tvi_tvi3315a\n"
         "endef\n",
         "define U-Boot/rk3399/Default",
+        "1",
     ),
 ]
 
-# Device/panther_x2 不显式指定 UBOOT_DEVICE_NAME：
-# 继承 Device/Legacy/rk3568 -> Device/Legacy/rk3568 中的
-# UBOOT_DEVICE_NAME := easepi-rk3568，正是我们需要的 bootloader。
-LEGACY_OLD = """define Device/panther_x2
-$(call Device/Legacy/rk3566,$(1))
-  DEVICE_VENDOR := Panther
-  DEVICE_MODEL := X2
-  DEVICE_DTS := rk3568/rk3566-panther-x2
-  SUPPORTED_DEVICES += panther,x2
-  UBOOT_DEVICE_NAME := panther-x2-rk3566
-  DEVICE_PACKAGES += kmod-brcmfmac wpad-basic-mbedtls
-endef"""
 
-LEGACY_NEW = LEGACY_OLD
+def active_variants():
+    """按环境开关筛选当前需要注册的变体。"""
+    support = os.environ.get("RK3399_SUPPORT", "1").strip()
+    return [v for v in VARIANTS if v[3] == support]
 
 
 def targets_block(src):
@@ -74,6 +77,11 @@ def patch_makefile():
     if not os.path.exists(MK):
         sys.exit(f"[uboot] 错误：找不到 {MK}，请确认已在 openwrt 源码根目录执行")
 
+    wanted = active_variants()
+    if not wanted:
+        print("[uboot] 当前布局无需注册自定义变体，跳过")
+        return
+
     with open(MK, encoding="utf-8") as fh:
         src = fh.read()
 
@@ -84,13 +92,13 @@ def patch_makefile():
     def defined(name):
         return re.search(r"^define U-Boot/%s$" % re.escape(name), src, re.M) is not None
 
-    def in_targets(name):
-        return re.search(r"^\s+%s\s*\\$" % re.escape(name), block, re.M) is not None
+    def in_targets(name, blk):
+        return re.search(r"^\s+%s\s*\\$" % re.escape(name), blk, re.M) is not None
 
     changed = False
 
     # --- 第一步：在 UBOOT_TARGETS 之前插入缺失的定义块 ---
-    for name, definition, dep in VARIANTS:
+    for name, definition, dep, _ in wanted:
         if defined(name):
             print(f"[uboot] U-Boot/{name} 定义已存在，跳过")
             continue
@@ -102,7 +110,7 @@ def patch_makefile():
         changed = True
 
     # --- 第二步：把缺失的条目补进 UBOOT_TARGETS 列表 ---
-    missing = [n for n, _, _ in VARIANTS if not in_targets(n)]
+    missing = [v[0] for v in wanted if not in_targets(v[0], block)]
     if missing:
         anchor = block.split("\n", 1)[0] + "\n"
         insert = "".join("  %s \\\n" % n for n in missing)
@@ -114,7 +122,7 @@ def patch_makefile():
     if changed:
         with open(MK, "w", encoding="utf-8") as fh:
             fh.write(src)
-    if not changed:
+    else:
         print("[uboot] 所有变体均已就绪，无需改动")
 
     # --- 自检：确认语法未被破坏 ---
@@ -123,14 +131,14 @@ def patch_makefile():
     final_block, first_entry_line = targets_block(final)
     if final_block is None or not first_entry_line.strip():
         sys.exit("[uboot] 自检失败：UBOOT_TARGETS 结构异常")
-    if not all(re.search(r"^\s+%s\s*\\$" % re.escape(n), final_block, re.M)
-               for n, _, _ in VARIANTS):
-        sys.exit("[uboot] 自检失败：变体未出现在 UBOOT_TARGETS 中")
+    for name, _, _, _ in wanted:
+        if not in_targets(name, final_block):
+            sys.exit(f"[uboot] 自检失败：{name} 未出现在 UBOOT_TARGETS 中")
     print("[uboot] 自检通过：UBOOT_TARGETS 语法完好，自定义变体均已注册")
 
 
-def patch_legacy_mk():
-    """确认 Device/panther_x2 未被注入无效的自定义 bootloader 名。"""
+def check_legacy_mk():
+    """确认 Device/panther_x2 指向有效的 bootloader。"""
     if not os.path.exists(LEGACY_MK):
         print(f"[device] 未找到 {LEGACY_MK}，跳过检查")
         return
@@ -154,4 +162,4 @@ def patch_legacy_mk():
 
 if __name__ == "__main__":
     patch_makefile()
-    patch_legacy_mk()
+    check_legacy_mk()

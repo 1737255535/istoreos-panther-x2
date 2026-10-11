@@ -132,6 +132,44 @@ jobs:
            # 清除.config配置文件里面重复的配置项
            configdata2=$(cat ./armv8/.config)
            echo "$configdata2" | awk '!seen[$0]++ && NF > 0' > ./armv8/.config
+
+           # ---- 设备归一化 ----
+           # 上游 easepi-r1 的 config.buildinfo 会带入其它 rk3568/rk3566 板型
+           # （如 firefly_station-m2=y），而上面的 sed 禁用清单并不完整。
+           # 多余设备会白白拖长编译，甚至拉入不适用的 bootloader/DTB，
+           # 导致 target/linux 阶段失败。这里统一收敛到本仓库唯一目标设备。
+           sed -i -E 's/^(CONFIG_TARGET_DEVICE_rockchip_armv8_DEVICE_.*)=y$/# \1 is not set/' ./armv8/.config
+           # 兜底：确保目标设备被启用
+           sed -i '/^# CONFIG_TARGET_DEVICE_rockchip_armv8_DEVICE_panther_x2 is not set$/d' ./armv8/.config
+           grep -q '^CONFIG_TARGET_DEVICE_rockchip_armv8_DEVICE_panther_x2=y$' ./armv8/.config || \
+             echo 'CONFIG_TARGET_DEVICE_rockchip_armv8_DEVICE_panther_x2=y' >> ./armv8/.config
+           # ---- 两个致命开关 ----
+           # 上游 easepi-r1 config.buildinfo 自带两项，均不属于本仓库目标配置：
+           #
+           #   CONFIG_TARGET_ALL_PROFILES=y
+           #     -> 强制构建 *所有* 已注册到 TARGET_DEVICES 的板型，包括本仓库
+           #        脚本注册的 tvi_tvi3315a。25.12 已无 files/ 注入点，
+           #        rk3399 dts 不进内核树，导致 dtb 编译失败：
+           #          cc1: fatal error: .../rockchip/rk3399-tvi3315a.dts: No such file
+           #          ERROR: target/linux failed to build.
+           #
+           #   CONFIG_ALL_KMODS=y
+           #     -> 编译全部 kmod，把 .config 撑到 365+ 行，
+           #        编译时间从 ~1.5h 涨到 5.5h 且最终失败。
+           if grep -q '^CONFIG_TARGET_ALL_PROFILES=y$' ./armv8/.config; then
+             sed -i -E 's/^CONFIG_TARGET_ALL_PROFILES=y$/# CONFIG_TARGET_ALL_PROFILES is not set/' ./armv8/.config
+           elif ! grep -q '^CONFIG_TARGET_ALL_PROFILES' ./armv8/.config; then
+             echo '# CONFIG_TARGET_ALL_PROFILES is not set' >> ./armv8/.config
+           fi
+           if grep -q '^CONFIG_ALL_KMODS=y$' ./armv8/.config; then
+             sed -i -E 's/^CONFIG_ALL_KMODS=y$/# CONFIG_ALL_KMODS is not set/' ./armv8/.config
+           elif ! grep -q '^CONFIG_ALL_KMODS' ./armv8/.config; then
+             echo '# CONFIG_ALL_KMODS is not set' >> ./armv8/.config
+           fi
+           echo "归一化后的目标设备:"
+           grep -E '^CONFIG_TARGET_DEVICE_rockchip_armv8_DEVICE_.*=y$' ./armv8/.config || echo "  (异常：无启用设备)"
+           echo "归一化后的构建范围:"
+           grep -E '^(# )?CONFIG_(TARGET_ALL_PROFILES|ALL_KMODS)(=| is not set)' ./armv8/.config || echo "  (异常：未找到)"
         else
            echo "不处理数据。"
         fi
@@ -140,7 +178,8 @@ jobs:
       uses: peaceiris/actions-gh-pages@v4
       with:
         personal_token: ${{ secrets.ACCESS_TOKEN }}
-        publish_branch: main
+        # 同步到触发该次运行的分支本身，避免 24.10 分支的配置被写回 main
+        publish_branch: ${{ github.ref_name }}
         publish_dir: ./
         user_name: 'GitHub Action'
         user_email: 'github-actions[bot]@github.com'
