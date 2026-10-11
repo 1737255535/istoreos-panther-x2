@@ -79,13 +79,16 @@ TARGET_DEVICES += panther_x2
 EOF
 
 # ============================================================================================================
-# Panther X2 专用 U-Boot 变体
-# 25.12 的 uboot-rockchip 已移除 station-m2-rk3566 等旧 rk3566 变体，
-# 此处为 Panther X2 注册独立的 u-boot 变体（含 dtsi 与 defconfig），
-# 并让设备指向该变体，避免沿用 rk3568 的 easepi-rk3568。
-# ============================================================================================================
-cp -f $GITHUB_WORKSPACE/configfiles/uboot-rockchip/rk3566-panther-x2-u-boot.dtsi package/boot/uboot-rockchip/src/arch/arm/dts/
-cp -f $GITHUB_WORKSPACE/configfiles/uboot-rockchip/panther-x2-rk3566_defconfig package/boot/uboot-rockchip/src/configs/
-
-# 在 uboot-rockchip/Makefile 中注册 panther-x2-rk3566 变体
+# U-Boot 说明
+# Panther X2 不再使用自定义 bootloader 变体，改为沿用 Device/Legacy/rk3568 继承来的
+# easepi-rk3568（RK3566/RK3568 官方参考板，DDR/PMIC 配置与本板通用，
+# ATF rk3568_bl31_v1.44.elf + TPL rk3566_ddr_1056MHz_v1.21.bin 均匹配 RK3566）。
+#
+# 曾尝试注册 panther-x2-rk3566 变体，但 u-boot 的 DTS 编译基于解压后的 tarball 源码树，
+# 仓库内提供的 .dtsi 只是 include（不是板级 .dts），tarball 中并无
+# arch/arm/dts/rockchip/rk3566-panther-x2.dts，导致：
+#   make[6]: *** No rule to make target
+#           'arch/arm/dts/rockchip/rk3566-panther-x2.dtb', needed by 'dtbs'.  Stop.
+#
+# 此处仅补齐 24.10 分支需要的 tvi3315a-rk3399 变体，并校验设备未指向无效变体。
 python3 "$GITHUB_WORKSPACE/scripts/patch_uboot_variant.py"
